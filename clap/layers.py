@@ -17,9 +17,10 @@ class TextEncoder(nn.Module):
         self.tokenizer = AutoTokenizer.from_pretrained(path_or_model_name)
         self.model = BertForPreTraining.from_pretrained(path_or_model_name)
 
-    def forward(self, text: str):
-        inputs = self.tokenizer(text=text, return_tensors="pt")
-        outputs = self.model(**inputs , output_hidden_states=True)
+    def forward(self, inputs):
+        print(f"inputs: {inputs} and the shape")
+        #inputs = self.tokenizer(text=text, return_tensors="pt")
+        outputs = self.model(input_ids=inputs["input_ids"] , output_hidden_states=True)
         # Get the last hidden states
         hidden_states = (
             outputs.hidden_states[-1]
@@ -38,9 +39,9 @@ class AudioEncoder(nn.Module):
         self.model = Wav2Vec2ForPreTraining.from_pretrained(path_or_model_name)
 
     @torch.no_grad()
-    def forward(self, array):
+    def forward(self, input_values):
         # Process input audio
-        input_values = self.feature_extractor(array, return_tensors="pt").input_values
+        #input_values = self.feature_extractor(array, return_tensors="pt").input_values
         batch_size, raw_sequence_length = input_values.shape
 
         # Get sequence length after feature extraction

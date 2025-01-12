@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 import torch
 from datasets import load_dataset
 from torch.utils.data import DataLoader
-from clap import prepare_dataset , DataCollatorWithPadding
+from clap import  DataCollatorWithPadding , AudioEncoder , TextEncoder
 from transformers import Wav2Vec2Processor, AutoFeatureExtractor, AutoTokenizer
 
 
@@ -13,9 +13,11 @@ tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-cased")
 processor = Wav2Vec2Processor(feature_extractor=feature_extractor, tokenizer=tokenizer)
 
 
-def prepare_dataset(processor:Wav2Vec2Processor , batch: Dict[str, Any]) -> Dict[str, Any]:
+def prepare_dataset(batch: Dict[str, Any]) -> Dict[str, Any]:
 
     audio = batch["audio"]
+    
+    print(f"The sampling rate of the audio is: {audio['sampling_rate']}")
     
     # Process audio input
     batch["input_values"] = processor(
@@ -31,11 +33,12 @@ def prepare_dataset(processor:Wav2Vec2Processor , batch: Dict[str, Any]) -> Dict
 
 
 def main():
+    audio_encoder = AudioEncoder("facebook/wav2vec2-base")
+    text_encoder = TextEncoder("google-bert/bert-base-cased")
  
     train = load_dataset("abdouaziiz/alffa_clap", split="train")
     #test = load_dataset("abdouaziiz/alffa_clap", split="test")
-    print(train)
-    
+
  
     train = train.map(
         prepare_dataset,
@@ -48,13 +51,19 @@ def main():
     train_loader = DataLoader(
         train,
         collate_fn=data_collator,
-        batch_size=2,
+        batch_size=1,
         num_workers=4
     )
     
  
     for batch in train_loader:
-        print(batch)
+        #input_values=torch.tensor(batch["input_values"])
+        labels=torch.tensor(batch["labels"])
+        #outputs = audio_encoder(input_values)
+        outputs = text_encoder({"input_ids": labels})
+        print(outputs.shape)
+        
+        
         break
 
 

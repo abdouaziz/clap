@@ -17,21 +17,9 @@ class DataCollatorWithPadding:
         self,
         features: List[Dict[str, Union[List[int], torch.Tensor]]]
     ) -> Dict[str, torch.Tensor]:
-        """
-        Process and collate features into padded batches.
-        
-        Args:
-            features: List of feature dictionaries containing input values and labels
-            
-        Returns:
-            Batched and padded features as tensors
-        """
-        input_features = [
-            {"input_values": feature["input_values"]} for feature in features
-        ]
-        label_features = [
-            {"input_ids": feature["labels"]} for feature in features
-        ]
+
+        input_features = [{"input_values": feature["input_values"]} for feature in features]
+        label_features = [{"input_ids": feature["labels"]} for feature in features]
         
         batch = self.processor.pad(
             input_features,

@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 import numpy as np
+from datasets import load_dataset
 from transformers import AutoTokenizer, BertForPreTraining
 from transformers import AutoFeatureExtractor, Wav2Vec2ForPreTraining
 from transformers.models.wav2vec2.modeling_wav2vec2 import (
@@ -18,7 +19,7 @@ class TextEncoder(nn.Module):
 
     def forward(self, text: str):
         inputs = self.tokenizer(text=text, return_tensors="pt")
-        outputs = self.model(**inputs)
+        outputs = self.model(**inputs , output_hidden_states=True)
         # Get the last hidden states
         hidden_states = (
             outputs.hidden_states[-1]
@@ -72,8 +73,9 @@ class AudioEncoder(nn.Module):
             input_values,
             mask_time_indices=mask_time_indices,
             sampled_negative_indices=sampled_negative_indices,
+            output_hidden_states=True
         )
-
+    
         # Get the last hidden states
         hidden_states = (
             outputs.hidden_states[-1]
@@ -82,41 +84,63 @@ class AudioEncoder(nn.Module):
         )
         return hidden_states
 
-
 class CLAP(nn.Module):
     def __init__(self, text_encoder_name, audio_encoder_name, projection_dim=512):
         super().__init__()
         self.text_encoder = TextEncoder(text_encoder_name)
         self.audio_encoder = AudioEncoder(audio_encoder_name)
-
+        
         # Add projection heads
-        self.text_projection = nn.Linear(
-            self.text_encoder.model.config.hidden_size, projection_dim
-        )
-        self.audio_projection = nn.Linear(
-            self.audio_encoder.model.config.hidden_size, projection_dim
-        )
-
+        self.text_projection = nn.Linear(self.text_encoder.model.config.hidden_size, projection_dim)
+        self.audio_projection = nn.Linear(self.audio_encoder.model.config.hidden_size, projection_dim)
+        
         # Temperature parameter for loss scaling
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
+        
+    def pool_embeddings(self, embeddings, pool_type='mean'):
 
+        if pool_type == 'mean':
+            # Mean pooling across sequence dimension
+            return embeddings.mean(dim=1)
+        elif pool_type == 'max':
+            # Max pooling across sequence dimension
+            return embeddings.max(dim=1)[0]
+        else:
+            raise ValueError(f"Unknown pooling type: {pool_type}")
+        
     def forward(self, text, audio):
-        # Get embeddings
+        # Get embeddings - shape: [batch_size, seq_len, hidden_dim]
         text_features = self.text_encoder(text)
         audio_features = self.audio_encoder(audio)
-
-        # Apply projection
-        text_embeddings = self.text_projection(text_features)
-        audio_embeddings = self.audio_projection(audio_features)
-
+        
+        # Project features
+        text_features = self.text_projection(text_features)  # [batch_size, text_seq_len, projection_dim]
+        audio_features = self.audio_projection(audio_features)  # [batch_size, audio_seq_len, projection_dim]
+        
+        # Pool sequence dimension
+        text_embeddings = self.pool_embeddings(text_features, pool_type='mean')  # [batch_size, projection_dim]
+        audio_embeddings = self.pool_embeddings(audio_features, pool_type='mean')  # [batch_size, projection_dim]
+        
         # Normalize embeddings
         text_embeddings = F.normalize(text_embeddings, dim=-1)
         audio_embeddings = F.normalize(audio_embeddings, dim=-1)
-
+        
         # Calculate similarity
         logit_scale = self.logit_scale.exp()
-        similarity = logit_scale * torch.matmul(
-            text_embeddings, audio_embeddings.transpose(0, 1)
-        )
-
+        similarity = logit_scale * torch.matmul(text_embeddings, audio_embeddings.transpose(0, 1))
+        
         return similarity, text_embeddings, audio_embeddings
+    
+    
+
+
+# if __name__=="__main__":
+#     clap = CLAP("google-bert/bert-base-cased", "facebook/wav2vec2-base")
+#     train = load_dataset("abdouaziiz/alffa_clap" , split="train")
+    
+#     similarity, text_embeddings, audio_embeddings = clap(text=train[0]["transcription"], audio=train[0]["audio"]["array"])
+    
+#     print(similarity)
+#     print(text_embeddings.shape)
+#     print(audio_embeddings.shape)
+ 

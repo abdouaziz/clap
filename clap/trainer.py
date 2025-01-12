@@ -91,8 +91,8 @@ class CLAPTrainer:
             self.optimizer.zero_grad()
             
             # Move batch to device
-            audio = batch['audio'].to(self.device)
-            text = batch['text']
+            audio = batch['audio']["array"].to(self.device)
+            text = batch['transcription']
             
             # Forward pass
             similarity, _, _ = self.model(text, audio)

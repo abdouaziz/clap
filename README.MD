@@ -14,7 +14,15 @@ CLAP introduces a powerful methodology for training models to understand and rep
 
 ## Installation  
 
-1. Clone this repository:  
+1. Clone this repository and install the required dependencies: 
    ```bash
    git clone https://github.com/abdouaziz/clap.git
    cd clap
+   pip install -r requirements.txt
+   ```
+
+2.to run code :
+   ```bash
+   bash install.sh
+   ```
+

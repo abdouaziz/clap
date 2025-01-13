@@ -91,11 +91,14 @@ class CLAPTrainer:
             self.optimizer.zero_grad()
             
             # Move batch to device
-            audio = batch['audio']["array"].to(self.device)
-            text = batch['transcription']
+            #audio = batch['audio']["array"].to(self.device)
+            #text = batch['transcription']
+            
+            input_values=torch.tensor(batch["input_values"]).to(self.device)
+            labels=torch.tensor(batch["labels"]).to(self.device)
             
             # Forward pass
-            similarity, _, _ = self.model(text, audio)
+            similarity, _, _ = self.model(input_values, labels)
             
             # Calculate loss
             loss = contrastive_loss(similarity)

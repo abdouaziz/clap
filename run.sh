@@ -1,0 +1,13 @@
+python train.py \
+    --text_encoder_name "google-bert/bert-base-cased" \
+    --audio_encoder_name "facebook/wav2vec2-base" \
+    --projection_dim 768 \
+    --hf_dataset_name "abdouaziiz/alffa_clap" \
+    --batch_size 1 \
+    --num_epochs 100 \
+    --learning_rate 1e-4 \
+    --weight_decay 0.01 \
+    --max_grad_norm 1.0 \
+    --use_wandb True \
+    --project_name "CLAP_training" \
+    --checkpoint_dir "./checkpoints"

@@ -2,8 +2,11 @@
 
 This repository accompanies the paper **"CLAP: Contrastive Language-Audio Pretraining for Universal Audio Understanding"**, which presents a novel framework for learning joint embeddings of language and audio through contrastive learning.  
 
-## Overview  
-
+<div align="center">
+  <img src="https://miro.medium.com/v2/resize:fit:1400/0*s7lWwZYUvoNbLffC.png" alt="CLAP" />
+  <p><b>Figure: CLAP Architecture</b></p>
+</div>
+ 
 CLAP introduces a powerful methodology for training models to understand and represent audio in a way that is aligned with natural language descriptions. By leveraging large-scale datasets and a contrastive learning objective, CLAP bridges the gap between audio and textual representations, enabling robust performance across a variety of downstream tasks.  
 
 ### Key Contributions  

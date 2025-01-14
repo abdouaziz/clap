@@ -8,6 +8,7 @@ from transformers.models.wav2vec2.modeling_wav2vec2 import (
     _compute_mask_indices,
     _sample_negative_indices,
 )
+from datasets import load_dataset
 
 
 class TextEncoder(nn.Module):
@@ -17,15 +18,16 @@ class TextEncoder(nn.Module):
         self.model = BertForPreTraining.from_pretrained(path_or_model_name)
 
     def forward(self, inputs):
-        print(f"inputs: {inputs} and the shape")
         #inputs = self.tokenizer(text=text, return_tensors="pt")
-        outputs = self.model(input_ids=inputs["input_ids"] , output_hidden_states=True)
+        outputs = self.model(input_ids=inputs , output_hidden_states=True)
+        
         # Get the last hidden states
         hidden_states = (
             outputs.hidden_states[-1]
             if isinstance(outputs.hidden_states, tuple)
             else outputs.hidden_states
         )
+       
         return hidden_states
 
 
@@ -82,10 +84,11 @@ class AudioEncoder(nn.Module):
             if isinstance(outputs.hidden_states, tuple)
             else outputs.hidden_states
         )
+        
         return hidden_states
 
 class CLAP(nn.Module):
-    def __init__(self, text_encoder_name, audio_encoder_name, projection_dim=512):
+    def __init__(self, text_encoder_name, audio_encoder_name, projection_dim=768):
         super().__init__()
         self.text_encoder = TextEncoder(text_encoder_name)
         self.audio_encoder = AudioEncoder(audio_encoder_name)
@@ -108,11 +111,12 @@ class CLAP(nn.Module):
         else:
             raise ValueError(f"Unknown pooling type: {pool_type}")
         
-    def forward(self, text, audio):
+    def forward(self, input_values, labels):
         # Get embeddings - shape: [batch_size, seq_len, hidden_dim]
-        text_features = self.text_encoder(text)
-        audio_features = self.audio_encoder(audio)
-        
+
+        text_features = self.text_encoder(inputs=labels)
+        audio_features = self.audio_encoder(input_values=input_values)
+
         # Project features
         text_features = self.text_projection(text_features)  # [batch_size, text_seq_len, projection_dim]
         audio_features = self.audio_projection(audio_features)  # [batch_size, audio_seq_len, projection_dim]
@@ -120,6 +124,8 @@ class CLAP(nn.Module):
         # Pool sequence dimension
         text_embeddings = self.pool_embeddings(text_features, pool_type='mean')  # [batch_size, projection_dim]
         audio_embeddings = self.pool_embeddings(audio_features, pool_type='mean')  # [batch_size, projection_dim]
+        
+        assert text_features.shape[-1] == audio_features.shape[-1]   , f"Text and audio projection dimensions do not match: {text_features.shape[-1]} != {audio_features.shape[-1]}"
         
         # Normalize embeddings
         text_embeddings = F.normalize(text_embeddings, dim=-1)
@@ -135,12 +141,19 @@ class CLAP(nn.Module):
 
 
 # if __name__=="__main__":
-#     clap = CLAP("google-bert/bert-base-cased", "facebook/wav2vec2-base")
+#     #clap = CLAP("google-bert/bert-base-cased", "facebook/wav2vec2-base")
+#     encoder = TextEncoder("google-bert/bert-base-cased")
+    
+    
+ 
 #     train = load_dataset("abdouaziiz/alffa_clap" , split="train")
+#     print(train)
+#     print(f"the shape of the text is {train[0]['transcription']}")
     
-#     similarity, text_embeddings, audio_embeddings = clap(text=train[0]["transcription"], audio=train[0]["audio"]["array"])
+#     #similarity, text_embeddings, audio_embeddings = clap(text=train[0]["transcription"], audio=train[0]["audio"]["array"])
     
-#     print(similarity)
-#     print(text_embeddings.shape)
-#     print(audio_embeddings.shape)
+#     text_embedding = encoder(inputs=train[0]["transcription"])
+    
+#     print(f"the shape of the text embedding is {text_embedding.shape}")
+    
  

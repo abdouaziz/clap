@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from dataclasses import asdict
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import wandb
@@ -30,24 +31,24 @@ class CLAPTrainer:
         model: nn.Module,
         train_loader: DataLoader,
         val_loader: DataLoader,
-        config: Dict,
+        args: Dict[str, any]
     ):
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
-        self.config = config
+        self.args = args    
         
         # Setup optimizer
         self.optimizer = optim.AdamW(
             self.model.parameters(),
-            lr=config['learning_rate'],
-            weight_decay=config['weight_decay']
+            lr=args['learning_rate'],
+            weight_decay=args['weight_decay']
         )
         
         # Setup learning rate scheduler
         self.scheduler = optim.lr_scheduler.CosineAnnealingLR(
             self.optimizer,
-            T_max=config['num_epochs']
+            T_max=args['num_epochs']
         )
         
         # Setup device
@@ -58,16 +59,17 @@ class CLAPTrainer:
         self.setup_logging()
         
     def setup_logging(self):
-        if self.config['use_wandb']:
+        if self.args['use_wandb']:
             wandb.init(
-                project=self.config['project_name'],
-                config=self.config
+                project=self.args['project_name'],
+                config=self.args
             )
         
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
+        
         
     def save_checkpoint(self, epoch: int, loss: float):
         checkpoint = {
@@ -78,7 +80,7 @@ class CLAPTrainer:
         }
         
         path = os.path.join(
-            self.config['checkpoint_dir'],
+            self.args['checkpoint_dir'],
             f"checkpoint_epoch_{epoch}.pt"
         )
         torch.save(checkpoint, path)
@@ -94,9 +96,9 @@ class CLAPTrainer:
             #audio = batch['audio']["array"].to(self.device)
             #text = batch['transcription']
             
-            input_values=torch.tensor(batch["input_values"]).to(self.device)
-            labels=torch.tensor(batch["labels"]).to(self.device)
-            
+            input_values=torch.tensor(batch["input_values"])
+            labels=torch.tensor(batch["labels"])
+
             # Forward pass
             similarity, _, _ = self.model(input_values, labels)
             
@@ -109,13 +111,13 @@ class CLAPTrainer:
             # Gradient clipping
             torch.nn.utils.clip_grad_norm_(
                 self.model.parameters(),
-                self.config['max_grad_norm']
+                self.args['max_grad_norm']
             )
             
             self.optimizer.step()
             total_loss += loss.item()
             
-            if self.config['use_wandb']:
+            if self.args['use_wandb']:
                 wandb.log({'train_batch_loss': loss.item()})
         
         return total_loss / len(self.train_loader)
@@ -127,11 +129,11 @@ class CLAPTrainer:
         
         for batch in tqdm(self.val_loader, desc="Validation"):
             # Move batch to device
-            audio = batch['audio'].to(self.device)
-            text = batch['text']
+            input_values=torch.tensor(batch["input_values"])
+            labels=torch.tensor(batch["labels"])
             
             # Forward pass
-            similarity, _, _ = self.model(text, audio)
+            similarity, _, _ = self.model(input_values, labels)
             
             # Calculate loss
             loss = contrastive_loss(similarity)
@@ -142,8 +144,8 @@ class CLAPTrainer:
     def train(self):
         best_val_loss = float('inf')
         
-        for epoch in range(self.config['num_epochs']):
-            logging.info(f"Epoch {epoch + 1}/{self.config['num_epochs']}")
+        for epoch in range(self.args['num_epochs']):
+            logging.info(f"Epoch {epoch + 1}/{self.args['num_epochs']}")
             
             # Training
             train_loss = self.train_epoch()
@@ -157,7 +159,7 @@ class CLAPTrainer:
             self.scheduler.step()
             
             # Logging
-            if self.config['use_wandb']:
+            if self.args['use_wandb']:
                 wandb.log({
                     'train_loss': train_loss,
                     'val_loss': val_loss,

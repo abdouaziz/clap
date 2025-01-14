@@ -1,6 +1,6 @@
 from datasets import load_dataset
 from torch.utils.data import DataLoader
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field , asdict
 from typing import Any, Dict
 from clap import DataCollatorWithPadding , CLAP, CLAPTrainer
 from transformers import Wav2Vec2Processor, AutoFeatureExtractor, AutoTokenizer, HfArgumentParser
@@ -60,6 +60,7 @@ class ModelArguments:
 def main():
     parser = HfArgumentParser((ModelArguments,))
     args = parser.parse_args_into_dataclasses()[0]
+    config=asdict(args)
     
     feature_extractor = AutoFeatureExtractor.from_pretrained(args.audio_encoder_name)
     tokenizer = AutoTokenizer.from_pretrained(args.text_encoder_name)
@@ -108,7 +109,7 @@ def main():
     )
 
     # Create trainer and train
-    trainer = CLAPTrainer(model, train_loader, val_loader, args)
+    trainer = CLAPTrainer(model, train_loader, val_loader, config)
     trainer.train()
 
 if __name__ == "__main__":

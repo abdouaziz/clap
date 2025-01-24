@@ -173,4 +173,3 @@ class CLAPTrainer:
                 self.save_checkpoint(epoch, val_loss)
                 
             logging.info(f"Best validation loss: {best_val_loss:.4f}")
-
